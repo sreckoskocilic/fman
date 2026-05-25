@@ -1,23 +1,43 @@
 from collections import namedtuple
 from PyQt5.QtGui import QColor
 
-import tinycss
+import tinycss2
 
 Rule = namedtuple('Rule', ('selectors', 'declarations'))
 Declaration = namedtuple('Declaration', ('property', 'value'))
 
+class CSSParseError(Exception):
+	def __init__(self, message, line=0, column=0):
+		super().__init__(message)
+		self.line = line
+		self.column = column
+		self.reason = message
+
 def parse_css(bytes_):
 	result = []
-	parser = tinycss.make_parser()
-	stylesheet = parser.parse_stylesheet_bytes(bytes_)
-	if stylesheet.errors:
-		raise stylesheet.errors[0]
-	for rule in stylesheet.rules:
-		selectors = rule.selector.as_css().split(', ')
-		declarations = [
-			Declaration(decl.name, decl.value.as_css())
-			for decl in rule.declarations
-		]
+	nodes = tinycss2.parse_stylesheet(
+		bytes_.decode('utf-8'), skip_comments=True, skip_whitespace=True
+	)
+	for node in nodes:
+		if node.type == 'error':
+			raise CSSParseError(
+				node.message, node.source_line, node.source_column
+			)
+		if node.type != 'qualified-rule':
+			continue
+		selector_str = tinycss2.serialize(node.prelude).strip()
+		selectors = [s.strip() for s in selector_str.split(',')]
+		declarations = []
+		for decl in tinycss2.parse_declaration_list(
+			node.content, skip_comments=True, skip_whitespace=True
+		):
+			if decl.type == 'error':
+				raise CSSParseError(
+					decl.message, decl.source_line, decl.source_column
+				)
+			if decl.type == 'declaration':
+				value = tinycss2.serialize(decl.value).strip()
+				declarations.append(Declaration(decl.name, value))
 		result.append(Rule(selectors, declarations))
 	return result
 

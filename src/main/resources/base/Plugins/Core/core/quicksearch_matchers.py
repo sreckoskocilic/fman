@@ -43,7 +43,8 @@ def contains_chars_after_separator(separator):
 			if skip_to_next_part:
 				if char == separator:
 					skip_to_next_part = False
-				continue
+				else:
+					continue
 			if not query:
 				break
 			if char == query[0]:
