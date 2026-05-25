@@ -254,37 +254,36 @@ class SuggestLocations:
 				for item in query.results():
 					yield item.valueForAttribute_("kMDItemPath")
 			elif PLATFORM == 'Windows':
-				import adodbapi
+				from win32com.client import Dispatch
 				from pythoncom import com_error
 				try:
-					conn = adodbapi.connect(
+					conn = Dispatch("ADODB.Connection")
+					conn.Open(
 						"Provider=Search.CollatorDSO;"
 						"Extended Properties='Application=Windows';"
 					)
-					cursor = conn.cursor()
+					rs = Dispatch("ADODB.Recordset")
 
-					# adodbapi claims to support "paramstyles", which would let us
-					# pass parameters as an extra arg to .execute(...), without
-					# having to worry about escaping them. Alas, adodbapi raises an
-					# error when this feature is used. We thus have to escape the
-					# param ourselves:
 					def escape(param):
 						return re.subn(r'([%_\[\]\^])', r'[\1]', param)[0]
 
-					cursor.execute(
+					rs.Open(
 						"SELECT TOP 5 System.ItemPathDisplay FROM SYSTEMINDEX "
 						"WHERE "
 						"System.ItemType = 'Directory' AND "
-						"System.ItemNameDisplay LIKE %r "
+						"System.ItemNameDisplay LIKE '%s%%' "
 						"ORDER BY System.ItemPathDisplay"
-						% (escape(pattern) + '%')
+						% escape(pattern).replace("'", "''"),
+						conn
 					)
-					for row in iter(cursor.fetchone, None):
-						value = row['System.ItemPathDisplay']
-						# Seems to be None sometimes:
+					while not rs.EOF:
+						value = rs.Fields("System.ItemPathDisplay").Value
 						if value:
 							yield value
-				except (adodbapi.Error, com_error):
+						rs.MoveNext()
+					rs.Close()
+					conn.Close()
+				except com_error:
 					pass
 
 	def __init__(self, visited_paths, file_system=None):
