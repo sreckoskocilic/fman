@@ -107,8 +107,6 @@ class DevelopmentApplicationContext(ApplicationContext):
 				pane = self.plugin_support.get_panes()[0]
 				tutorial = self.tutorial_factory(pane)
 				self.tour_controller.start(tutorial)
-			else:
-				self.splash_screen.exec()
 	def _preload_core_services(self):
 		from threading import Thread
 		def _load():
@@ -174,7 +172,7 @@ class DevelopmentApplicationContext(ApplicationContext):
 			self.app.set_main_window(self._main_window)
 		return self._main_window
 	def _get_main_window_title(self):
-		return 'fman' if self.is_licensed else 'fman – NOT REGISTERED'
+		return 'fman'
 	@cached_property
 	def help_menu_actions(self):
 		if is_mac():
