@@ -109,7 +109,7 @@ class SortedFileSystemModel(QSortFilterProxyModel):
 		self._connect_signals(new_model)
 		if len(self._already_visited) > self._MAX_VISITED:
 			self._already_visited.clear()
-			self._already_visited.add(url)
+		self._already_visited.add(url)
 		self.location_changed.emit(url)
 		order = Qt.AscendingOrder if ascending else Qt.DescendingOrder
 		self.sort_order_changed.emit(sort_col_index, order)
