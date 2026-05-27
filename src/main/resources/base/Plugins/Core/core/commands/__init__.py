@@ -1047,17 +1047,7 @@ def _toggle_hidden_files(pane, value):
 	else:
 		pane._add_filter(_hidden_file_filter)
 	_get_pane_info(pane)['show_hidden_files'] = value
-	# Consider a scenario where the user:
-	#  1. shows hidden files, then
-	#  2. reloads plugins.
-	# The second step reloads the settings. This reverts 'Panes.json' to the
-	# version that was last saved. If we only relied on the save_on_quit
-	# functionality of load_json(...), then the last saved version would be the
-	# one when fman was last closed. But this does not reflect the fact that we
-	# are now showing hidden files. So we flush Panes.json immediately to disk:
 	save_json('Panes.json')
-	# When we toggle hidden files again, this avoids an error caused by
-	# `_remove_filter` being called for a non-active filter.
 
 def _get_pane_info(pane):
 	settings = load_json('Panes.json', default=[])
@@ -1072,6 +1062,7 @@ def _hidden_file_filter(url):
 		return True
 	scheme, path = splitscheme(url)
 	return scheme != 'file://' or not is_hidden(path)
+_hidden_file_filter._filter_tag = 'hidden_files'
 
 class _OpenInPaneCommand(DirectoryPaneCommand):
 	def __call__(self):

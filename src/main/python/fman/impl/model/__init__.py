@@ -143,9 +143,20 @@ class SortedFileSystemModel(QSortFilterProxyModel):
 		self._filters.append(filter_)
 		self.sourceModel().add_filter(filter_)
 	def remove_filter(self, filter_):
-		try:
-			self._filters.remove(filter_)
-		except ValueError:
+		tag = getattr(filter_, '_filter_tag', None)
+		for i, f in enumerate(self._filters):
+			if f is filter_ or f == filter_:
+				del self._filters[i]
+				break
+			ftag = getattr(f, '_filter_tag', None)
+			if tag and ftag == tag:
+				del self._filters[i]
+				break
+			# Cross-module: same function loaded twice via plugin system
+			if ftag and getattr(filter_, '__name__', None) == getattr(f, '__name__', None):
+				del self._filters[i]
+				break
+		else:
 			return
 		self.sourceModel().remove_filter(filter_)
 	def url(self, index):
