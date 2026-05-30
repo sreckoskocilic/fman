@@ -46,6 +46,16 @@ def freeze():
 		path('${core_plugin_in_freeze_dir}/bin/mac/7za'),
 		path('${freeze_dir}/Contents/MacOS')
 	)
+	# freeze_mac() adhoc-signs the bundle, but every step above modifies its
+	# contents, which invalidates that signature. macOS refuses to show the
+	# Automation (Apple events) prompt for an invalidly-signed app and denies
+	# silently instead - that is what breaks "Get Info". Re-sign adhoc as the
+	# very last step so the bundle has a valid signature again. publish() runs
+	# sign() afterwards, which re-signs with Developer ID and overrides this.
+	run(
+		['codesign', '--force', '--deep', '--sign', '-', path('${freeze_dir}')],
+		check=True
+	)
 
 def _strip_unused_from_bundle():
 	frameworks = path('${freeze_dir}/Contents/Frameworks')

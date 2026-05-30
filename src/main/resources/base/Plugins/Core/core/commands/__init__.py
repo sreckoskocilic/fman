@@ -1629,11 +1629,26 @@ if PLATFORM == 'Mac':
 		def _run_applescript(self, script, args=None):
 			if args is None:
 				args = []
+			rc, stderr = self._osascript(script, args)
+			# -1743: macOS refused to send Apple events to Finder. Each adhoc
+			# build has a new code identity (cdhash), so any prior Automation
+			# grant no longer matches and macOS denies WITHOUT re-prompting -
+			# GetInfo would then fail silently. Reset our own (stale) grant and
+			# retry once: with no recorded decision, macOS shows the Allow
+			# prompt instead. This also recovers end users after an update.
+			if rc and b'-1743' in (stderr or b''):
+				Popen(
+					['tccutil', 'reset', 'AppleEvents', 'io.fman.fman'],
+					stdout=DEVNULL, stderr=DEVNULL
+				).wait()
+				self._osascript(script, args)
+		def _osascript(self, script, args):
 			process = Popen(
 				['osascript', '-'] + args, stdin=PIPE,
-				stdout=DEVNULL, stderr=DEVNULL
+				stdout=DEVNULL, stderr=PIPE
 			)
-			process.communicate(script.encode('ascii'))
+			_, stderr = process.communicate(script.encode('ascii'))
+			return process.returncode, stderr
 elif PLATFORM == 'Windows':
 	try:
 		from .explorer_properties import ShowExplorerProperties
