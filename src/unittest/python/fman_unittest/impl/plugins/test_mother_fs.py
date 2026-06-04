@@ -161,6 +161,16 @@ class MotherFileSystemTest(TestCase):
 		mother_fs.delete('stub://a/b')
 		with self.assertRaises(KeyError):
 			fs.cache.get('a', 'stat')
+	def test_file_changed_clears_cache(self):
+		fs = StubFileSystem({
+			'a': {'size': 10}
+		})
+		mother_fs = self._create_mother_fs(fs)
+		fs.size_bytes('a')
+		self.assertEqual(10, fs.cache.get('a', 'size_bytes'))
+		mother_fs.notify_file_changed('stub://a')
+		with self.assertRaises(KeyError):
+			fs.cache.get('a', 'size_bytes')
 	def test_iterdir_returns_cached_iterator(self):
 		fs = StubFileSystem({
 			'a': {'is_dir': True, 'files': ['b', 'c']}

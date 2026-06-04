@@ -174,6 +174,10 @@ class MotherFileSystem:
 		child.notify_file_added(path)
 	def notify_file_changed(self, url):
 		child, path = self._split(url)
+		# Drop cached attrs (size, mtime, icon, iterdir, ...) for the changed
+		# path before firing callbacks, mirroring notify_file_added. Otherwise
+		# listeners that re-query during the callback read stale data.
+		child.cache.clear(path)
 		child.notify_file_changed(path)
 	def notify_file_removed(self, url):
 		child, path = self._split(url)

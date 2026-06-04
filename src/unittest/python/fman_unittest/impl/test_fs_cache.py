@@ -144,6 +144,28 @@ class CacheTest(TestCase):
 		t.join()
 		self.assertEqual(2, compute_count[0])
 		self.assertEqual('val_2', result)
+	def test_query_retries_on_concurrent_clear_attr(self):
+		"""clear_attr() must force a query() retry the same way clear() does:
+		a clear_attr racing an in-flight compute must never cache stale data."""
+		compute_count = [0]
+		compute_started = Event()
+		clear_done = Event()
+		def compute_value():
+			compute_count[0] += 1
+			if compute_count[0] == 1:
+				compute_started.set()
+				clear_done.wait(timeout=2)
+			return 'val_%d' % compute_count[0]
+		def do_clear_attr():
+			compute_started.wait(timeout=2)
+			self.cache.clear_attr('p', 'a')
+			clear_done.set()
+		t = Thread(target=do_clear_attr)
+		t.start()
+		result = self.cache.query('p', 'a', compute_value)
+		t.join()
+		self.assertEqual(2, compute_count[0])
+		self.assertEqual('val_2', result)
 	def test_mutate_safe_during_concurrent_clear(self):
 		"""mutate must not crash when clear removes the item concurrently."""
 		errors = []

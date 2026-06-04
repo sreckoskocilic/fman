@@ -108,6 +108,32 @@ class LocalFileSystemTest(TestCase):
 			b.symlink_to(a)
 			self._fs.delete(_urlpath(b))
 			self.assertFalse(b.exists(), 'Failed to delete symlink to folder')
+	def test_do_delete_reraises_on_writable_file(self):
+		# A delete failure on a writable file must propagate, not be swallowed.
+		# Swallowing would falsely notify the file as removed while it still
+		# exists on disk -> data loss when a Move deletes the source.
+		from os import rmdir
+		with TemporaryDirectory() as tmp_dir:
+			nonempty = Path(tmp_dir, 'dir')
+			nonempty.mkdir()
+			(nonempty / 'child').touch()
+			# rmdir on a non-empty (but writable) directory raises OSError:
+			with self.assertRaises(OSError):
+				self._fs._do_delete(_urlpath(nonempty), rmdir)
+			self.assertTrue(nonempty.exists(), 'Was falsely reported removed')
+	def test_copy_symlink_over_existing(self):
+		# Regression: copying a symlink onto an existing destination must
+		# overwrite it, not crash with FileExistsError from os.symlink.
+		with TemporaryDirectory() as tmp_dir:
+			target = Path(tmp_dir, 'target')
+			target.write_text('data')
+			link = Path(tmp_dir, 'link')
+			link.symlink_to(target)
+			dst = Path(tmp_dir, 'dst')
+			dst.write_text('old')
+			self._fs.copy(as_url(link), as_url(dst))
+			self.assertTrue(dst.is_symlink())
+			self.assertEqual(str(target), os.readlink(dst))
 	def test_copy_file(self):
 		self._test_transfer_file(self._fs.copy, deletes_src=False)
 	def test_move_file(self):

@@ -48,6 +48,11 @@ class Cache:
 					pass
 	def clear_attr(self, path, attr):
 		with self._lock:
+			# Bump the generation like clear() does, so an in-flight query()
+			# computing this attr retries instead of caching a now-stale value.
+			# Without this, a clear_attr() that lands between compute_value()
+			# finishing and the result being stored is silently lost.
+			self._generation += 1
 			try:
 				item = self._root.get_child(path)
 			except KeyError:

@@ -210,6 +210,12 @@ class LocalFileSystem(FileSystem):
 					raise orig_exc
 				# Try again, now the file is writeable:
 				delete_fn(os_path)
+			else:
+				# The file is already writable, so chmod wouldn't help. Don't
+				# swallow the error: otherwise we'd falsely notify the file as
+				# removed below while it still exists on disk (data loss in a
+				# Move, which deletes the source after copying).
+				raise orig_exc
 		self.notify_file_removed(path)
 	def resolve(self, path):
 		path = self._url_to_os_path(path)
@@ -326,6 +332,11 @@ class CopyFile(Task):
 		src = as_human_readable(self._src_url)
 		dst = as_human_readable(self._dst_url)
 		if islink(src):
+			# os.symlink fails with FileExistsError if dst exists. The regular
+			# file branch below overwrites via open(dst, 'wb'); mirror that here
+			# by removing an existing dst first (lexists catches broken links).
+			if os.path.lexists(dst):
+				os.remove(dst)
 			os.symlink(os.readlink(src), dst)
 		else:
 			with open(src, 'rb') as fsrc:

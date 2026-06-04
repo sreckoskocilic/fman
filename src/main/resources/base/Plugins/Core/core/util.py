@@ -39,7 +39,10 @@ def is_parent(dir_url, file_url, fs=fman.fs):
 		try:
 			if fs.samefile(parent_url, dir_url):
 				return True
-		except FileNotFoundError:
+		except OSError:
+			# FileNotFoundError when the parent doesn't exist yet, but also eg.
+			# PermissionError from resolve(). Either way this parent isn't a
+			# match; don't let it abort the caller's whole operation.
 			continue
 	return False
 

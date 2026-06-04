@@ -60,7 +60,16 @@ class FileTreeOperation(Task):
 		)])
 		for i, src in enumerate(self._iter(self._files)):
 			is_last = i == len(self._files) - 1
-			dest = self._get_dest_url(src)
+			try:
+				dest = self._get_dest_url(src)
+			except ValueError as e:
+				# Eg. relpath() across different URL schemes / Windows drives.
+				# Report per-file instead of aborting the whole operation:
+				error_message = 'Could not %s %s' % \
+								(self._descr_verb, as_human_readable(src))
+				if self._handle_exception(error_message, is_last, e):
+					continue
+				return False
 			if is_parent(src, dest, self._fs):
 				if src != dest:
 					try:

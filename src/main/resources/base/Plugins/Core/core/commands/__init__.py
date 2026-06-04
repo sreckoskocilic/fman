@@ -96,7 +96,7 @@ class MoveToTrash(DirectoryPaneCommand):
 		if not urls:
 			show_alert('No file is selected!')
 			return
-		description = _describe(urls, 'these %d files')
+		description = _describe(urls, 'these %d items')
 		trash = 'Recycle Bin' if PLATFORM == 'Windows' else 'Trash'
 		msg = "Do you really want to move %s to the %s?" % (description, trash)
 		if show_alert(msg, YES | NO, YES) & YES:
@@ -489,20 +489,7 @@ class CreateAndEditFile(OpenWithEditor):
 	aliases = ('New file', 'Create file', 'Create and edit file')
 
 	def __call__(self, url=None):
-		file_under_cursor = self.pane.get_file_under_cursor()
-		default_name = ''
-		if file_under_cursor:
-			try:
-				file_is_dir = is_dir(file_under_cursor)
-			except OSError:
-				file_is_dir = False
-			if not file_is_dir:
-				default_name = basename(file_under_cursor)
-		selection_end = _find_extension_start(default_name)
-		file_name, ok = show_prompt(
-			'Enter file name to create/edit:', default_name,
-			selection_end=selection_end
-		)
+		file_name, ok = show_prompt('Enter file name to create/edit:')
 		if ok and file_name:
 			file_to_edit = join(self.pane.get_path(), file_name)
 			if not exists(file_to_edit):
@@ -529,8 +516,11 @@ class CreateAndEditFile(OpenWithEditor):
 
 def _find_extension_start(file_name, start=0):
 	for dual_extension in ('.pkg.tar.xz', '.tar.xz', '.tar.gz'):
-		if file_name.endswith(dual_extension):
-			return len(file_name) - len(dual_extension)
+		index = len(file_name) - len(dual_extension)
+		# Guard `index >= start` so we never return a position before `start`,
+		# which would make a caller's selection_end < selection_start.
+		if index >= start and file_name.endswith(dual_extension):
+			return index
 	try:
 		return file_name.rindex('.', start)
 	except ValueError as not_found:
@@ -866,12 +856,7 @@ class CreateDirectory(DirectoryPaneCommand):
 	)
 
 	def __call__(self):
-		file_under_cursor = self.pane.get_file_under_cursor()
-		if file_under_cursor:
-			default = basename(file_under_cursor).split('.', 1)[0]
-		else:
-			default = ''
-		name, ok = show_prompt("New folder (directory)", default)
+		name, ok = show_prompt("New folder (directory)")
 		if ok and name:
 			# Support recursive creation of directories:
 			if PLATFORM == 'Windows':
@@ -1687,7 +1672,12 @@ class Pack(DirectoryPaneCommand):
 			show_alert('No file is selected!')
 			return
 		if len(files) == 1:
-			dest_name = PurePath(basename(files[0])).stem + '.zip'
+			# Strip the full extension so eg. `data.tar.gz` -> `data.zip`, not
+			# `data.tar.zip`. A falsy ext_start (None / 0 for dotfiles) means
+			# "no extension to strip", so keep the whole name.
+			name = basename(files[0])
+			ext_start = _find_extension_start(name)
+			dest_name = (name[:ext_start] if ext_start else name) + '.zip'
 		else:
 			dest_name = basename(self.pane.get_path()) + '.zip'
 		dest_dir = _get_opposite_pane(self.pane).get_path()
@@ -1832,6 +1822,13 @@ class RememberSortSettings(DirectoryPaneListener):
 	def _remember_curr_sort_column(self):
 		column, is_ascending = self.pane.get_sort_column()
 		url = self.pane.get_path()
+		# Key by the resolved URL to match before_location_change(), which reads
+		# settings[resolve(url)]. Otherwise eg. a symlinked dir (or zip:/// that
+		# resolves to file:///) is saved under one key and never read back.
+		try:
+			url = resolve(url)
+		except OSError:
+			pass
 		settings = load_json('Sort Settings.json', default={})
 		default = (self.pane.get_columns()[0], True)
 		if (column, is_ascending) == default:

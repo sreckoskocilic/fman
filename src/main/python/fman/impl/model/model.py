@@ -348,7 +348,11 @@ class Model(SortFilterTableModel, DragAndDrop):
 		with self._files_lock:
 			return dict(self._files)
 	def get_rows(self):
-		return self._files.values()
+		# Snapshot under the lock: returning the live dict view would raise
+		# "dictionary changed size during iteration" if _files is rebuilt
+		# concurrently (every other _files access is guarded by _files_lock).
+		with self._files_lock:
+			return list(self._files.values())
 	def get_sort_value(self, row, column, ascending):
 		cell = row.cells[column]
 		result = cell.sort_value_asc if ascending else cell.sort_value_desc

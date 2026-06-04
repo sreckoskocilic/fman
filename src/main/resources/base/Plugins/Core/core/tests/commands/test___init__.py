@@ -18,6 +18,11 @@ class FindExtensionStartTest(TestCase):
 		self.assertEqual(7, _find_extension_start('archive.tar.xz'))
 	def test_tar_gz(self):
 		self.assertEqual(7, _find_extension_start('archive.tar.gz'))
+	def test_dual_extension_respects_start(self):
+		# A `start` past the dual-extension boundary must not yield an index
+		# before `start` (which would give selection_end < selection_start).
+		name = 'a.tar.gz'
+		self.assertIsNone(_find_extension_start(name, start=len(name)))
 
 class ConfirmTreeOperationTest(TestCase):
 
