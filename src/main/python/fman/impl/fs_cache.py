@@ -1,8 +1,7 @@
 # Lock ordering (acquire top-to-bottom, never invert):
-#   Cache._lock
-#     CacheItem._children_lock (per-node, parent before child)
-#       CacheItem._attr_locks_lock (per-node)
-#         CacheItem attr RLock (per-attr)
+#   Cache._lock            (serializes all _children traversal/mutation)
+#     CacheItem._attr_locks_lock (per-node)
+#       CacheItem attr RLock (per-attr)
 # Cache._lock must NOT be held when calling compute_value in query(),
 # because compute_value may trigger nested cache operations.
 from threading import Lock, RLock
@@ -62,7 +61,6 @@ class Cache:
 class CacheItem:
 	def __init__(self):
 		self._children = {}
-		self._children_lock = Lock()
 		self._attrs = {}
 		self._attr_locks_lock = Lock()
 		self._attr_locks = {}

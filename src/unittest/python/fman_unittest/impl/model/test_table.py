@@ -31,6 +31,8 @@ class TableModelTest(TestCase):
 		self._model.insert_rows([row])
 		self._expect_rows([row])
 	def test_insert_second_row(self):
+		self._insert_two_rows()
+	def _insert_two_rows(self):
 		a = Row('a')
 		self._model.insert_rows([a])
 		b = Row('b')
@@ -38,15 +40,15 @@ class TableModelTest(TestCase):
 		self._expect_rows([a, b])
 		return a, b
 	def test_insert_at_start(self):
-		a, b = self.test_insert_second_row()
+		a, b = self._insert_two_rows()
 		c = Row('c')
 		self._model.insert_rows([c], 0)
 		self._expect_rows([c, a, b])
 	def test_insert_between(self):
-		a, b = self.test_insert_second_row()
+		a, b = self._insert_two_rows()
 		c = Row('c')
-		self._model.insert_rows([c], 0)
-		self._expect_rows([c, a, b])
+		self._model.insert_rows([c], 1)
+		self._expect_rows([a, c, b])
 	def test_move_row_forward(self):
 		a, b, c = Row('a'), Row('b'), Row('c')
 		self._model.insert_rows([a, b, c])
