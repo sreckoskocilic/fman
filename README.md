@@ -21,3 +21,13 @@ Then you can use `python build.py` to run, compile etc. fman. For example:
 Call `python build.py` without arguments to see a list of available commands.
 This uses [fman build system](https://build-system.fman.io/).
 
+## Key dependencies
+
+| Package | Version | Notes |
+|---------|---------|-------|
+| PyQt5 | 5.15.11 | GUI framework |
+| PyInstaller | 6.19.0 | App freezing/compilation |
+| pyobjc-core | 12.1 | macOS Objective-C bridge |
+| fbs | 0.9.4 | Build system |
+
+See `requirements/` for the full list per platform.

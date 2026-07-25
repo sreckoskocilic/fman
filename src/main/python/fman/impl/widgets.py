@@ -447,7 +447,7 @@ class MainWindow(QMainWindow):
 				return False
 			self._splitter.restoreState(state[self_state_len:-4])
 			return True
-		except (struct.error, Exception):
+		except Exception:
 			return False
 	def focusNextPrevChild(self, next):
 		# Returning False here lets us receive Tab in keyPressEvent(...).
