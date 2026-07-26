@@ -181,13 +181,19 @@ class FileSystem:
 		message = self.__class__.__name__ + ' does not implement this function.'
 		return NotImplementedError(message)
 	def _add_file_changed_callback(self, path, callback):
+		# watch(...) may block on the main thread, which may itself be waiting
+		# for this lock in notify_file_changed(...). So call it outside:
+		must_watch = False
 		with self._file_changed_callbacks_lock:
 			try:
 				self._file_changed_callbacks[path].append(callback)
 			except KeyError:
 				self._file_changed_callbacks[path] = [callback]
-				self.watch(path)
+				must_watch = True
+		if must_watch:
+			self.watch(path)
 	def _remove_file_changed_callback(self, path, callback):
+		must_unwatch = False
 		with self._file_changed_callbacks_lock:
 			try:
 				path_callbacks = self._file_changed_callbacks[path]
@@ -197,7 +203,9 @@ class FileSystem:
 			path_callbacks.remove(callback)
 			if not path_callbacks:
 				del self._file_changed_callbacks[path]
-				self.unwatch(path)
+				must_unwatch = True
+		if must_unwatch:
+			self.unwatch(path)
 
 def cached(fs_method):
 	@wraps(fs_method)

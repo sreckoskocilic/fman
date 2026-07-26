@@ -1,5 +1,5 @@
 from json import JSONDecodeError
-from os import makedirs
+from os import getpid, makedirs, replace, unlink
 from os.path import dirname
 
 import json
@@ -20,7 +20,16 @@ class Settings:
 		return self._json_dict.setdefault(key, value)
 	def flush(self):
 		makedirs(dirname(self._json_path), exist_ok=True)
-		with open(self._json_path, 'w') as f:
-			json.dump(self._json_dict, f)
+		# Write atomically so an interrupted flush cannot truncate the file:
+		tmp_path = self._json_path + '.tmp%d' % getpid()
+		try:
+			with open(tmp_path, 'w') as f:
+				json.dump(self._json_dict, f)
+			replace(tmp_path, self._json_path)
+		finally:
+			try:
+				unlink(tmp_path)
+			except FileNotFoundError:
+				pass
 	def __bool__(self):
 		return bool(self._json_dict)

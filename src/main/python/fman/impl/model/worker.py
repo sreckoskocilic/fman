@@ -1,6 +1,6 @@
 from functools import total_ordering
 from queue import PriorityQueue
-from threading import Thread, Lock
+from threading import Thread, Lock, current_thread
 
 import sys
 
@@ -26,7 +26,9 @@ class Worker:
 		with self._shutdown_lock:
 			self._shutdown = True
 			self._queue.put(WorkItem(0, lambda: None))
-		if self._thread.is_alive():
+		# We are usually called from the worker thread itself, which cannot
+		# join(...) itself:
+		if self._thread is not current_thread() and self._thread.is_alive():
 			self._thread.join()
 	def _run(self):
 		while True:

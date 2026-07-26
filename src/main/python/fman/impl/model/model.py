@@ -424,11 +424,12 @@ class Model(SortFilterTableModel, DragAndDrop):
 		if not all_loaded:
 			self._load_remaining_files()
 	def shutdown(self):
-		self._shutdown.set()
 		# Similarly to why we don't want to call FileWatcher#start() from the
 		# main thread, we also don't want to call #shutdown() from it to avoid
 		# potential deadlocks. So do it asynchronously:
 		self._shutdown_async()
+		# Must come last: @transaction drops calls made once the flag is set.
+		self._shutdown.set()
 	@transaction(priority=1)
 	def _shutdown_async(self):
 		self._file_watcher.shutdown()

@@ -332,25 +332,42 @@ class CopyFile(Task):
 		src = as_human_readable(self._src_url)
 		dst = as_human_readable(self._dst_url)
 		if islink(src):
-			# os.symlink fails with FileExistsError if dst exists. The regular
-			# file branch below overwrites via open(dst, 'wb'); mirror that here
-			# by removing an existing dst first (lexists catches broken links).
+			# os.symlink fails with FileExistsError if dst exists:
 			if os.path.lexists(dst):
 				os.remove(dst)
 			os.symlink(os.readlink(src), dst)
+			copystat(src, dst, follow_symlinks=False)
 		else:
-			with open(src, 'rb') as fsrc:
-				with open(dst, 'wb') as fdst:
-					num_written = 0
-					while True:
-						self.check_canceled()
-						buf = fsrc.read(16 * 1024)
-						if not buf:
-							break
-						num_written += fdst.write(buf)
-						self.set_progress(num_written)
-		copystat(src, dst, follow_symlinks=False)
-		if not dst_existed:
+			# Via a temp file: open(dst, 'wb') would truncate dst up front, so
+			# cancelling or an I/O error would destroy it.
+			tmp_dst = dst + '.fman-part%d' % os.getpid()
+			try:
+				with open(src, 'rb') as fsrc:
+					fd = os.open(
+						tmp_dst, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600
+					)
+					with os.fdopen(fd, 'wb') as fdst:
+						num_written = 0
+						while True:
+							self.check_canceled()
+							buf = fsrc.read(16 * 1024)
+							if not buf:
+								break
+							num_written += fdst.write(buf)
+							self.set_progress(num_written)
+				copystat(src, tmp_dst, follow_symlinks=False)
+				os.replace(tmp_dst, dst)
+			except BaseException:
+				try:
+					os.remove(tmp_dst)
+				except OSError:
+					pass
+				raise
+		if dst_existed:
+			# Overwriting leaves the parent's mtime alone, so no watcher event:
+			self._fs.cache.clear(dst_urlpath)
+			self._fs.notify_file_changed(dst_urlpath)
+		else:
 			self._fs.notify_file_added(dst_urlpath)
 
 class MoveByCopying(Task):
