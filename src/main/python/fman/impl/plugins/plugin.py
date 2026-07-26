@@ -301,9 +301,10 @@ class ReportExceptions:
 			return True
 
 class ListenerWrapper(Wrapper):
-	# More than one worker: a listener that blocks (eg. shows a modal) must not
-	# stall the events of every other listener behind it.
-	_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix='listener')
+	# One worker. Upstream spawned a thread per event, which is unbounded: hold
+	# a cursor key and on_path_changed creates hundreds. Serialising them is
+	# stricter than upstream, but it is what the shipped build runs.
+	_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix='listener')
 	@classmethod
 	def shutdown_pool(cls, wait=False):
 		cls._POOL.shutdown(wait=wait)
