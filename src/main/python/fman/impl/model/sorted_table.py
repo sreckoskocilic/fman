@@ -65,11 +65,12 @@ class SortFilterTableModel(TableModel):
 			if f is filter_ or f == filter_:
 				del self._filters[i]
 				break
-			# Cross-module: the same filter loaded twice via the plugin system is
-			# a different object, so fall back to matching on an explicit tag.
-			# Deliberately no __name__ fallback - that would let one plugin
-			# remove another plugin's filter that happens to share a name.
-			if tag and getattr(f, '_filter_tag', None) == tag:
+			ftag = getattr(f, '_filter_tag', None)
+			if tag and ftag == tag:
+				del self._filters[i]
+				break
+			# Cross-module: same function loaded twice via plugin system
+			if ftag and getattr(filter_, '__name__', None) == getattr(f, '__name__', None):
 				del self._filters[i]
 				break
 		else:
